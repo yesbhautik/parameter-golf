@@ -1,0 +1,17 @@
+{
+  "author": "yesbhautik",
+  "github_id": "yesbhautik",
+  "name": "Standard Optimal: MLP 3x + STE int6 QAT + Sliding Window + Tuned Muon",
+  "blurb": "Standard FineWeb training (no val-only). 9-layer MLP-3x (h=1536), STE fake-int6 QAT, mixed int6/int8 post-training quantization, sliding window eval stride=64, tuned Muon (momentum 0.99, LR 0.02, seq4096).",
+  "date": "2026-03-19T17:00:00Z",
+  "val_loss": 1.96346117,
+  "val_bpb": 1.16287856,
+  "pre_quant_val_loss": 1.9806,
+  "pre_quant_val_bpb": 1.1730,
+  "step_stop": 10361,
+  "wallclock_seconds": 600.045,
+  "eval_time_seconds": 308.436,
+  "bytes_total": 15356814,
+  "bytes_model_int8_zlib": 15305942,
+  "bytes_code": 50872
+}

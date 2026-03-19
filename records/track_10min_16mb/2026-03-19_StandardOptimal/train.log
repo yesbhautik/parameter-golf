@@ -1238,3 +1238,179 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+====================================================================================================
+Running Python 3.12.10 (main, May 21 2025, 23:34:56) [GCC 12.2.0]
+Running PyTorch 2.10.0+cu128
+Thu Mar 19 15:56:33 2026       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 580.95.05              Driver Version: 580.95.05      CUDA Version: 13.0     |
++-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA H100 80GB HBM3          On  |   00000000:04:00.0 Off |                    0 |
+| N/A   33C    P0            117W /  700W |    1521MiB /  81559MiB |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+|   1  NVIDIA H100 80GB HBM3          On  |   00000000:05:00.0 Off |                    0 |
+| N/A   32C    P0            116W /  700W |    1521MiB /  81559MiB |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+|   2  NVIDIA H100 80GB HBM3          On  |   00000000:0B:00.0 Off |                    0 |
+| N/A   34C    P0            120W /  700W |    1521MiB /  81559MiB |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+|   3  NVIDIA H100 80GB HBM3          On  |   00000000:0C:00.0 Off |                    0 |
+| N/A   33C    P0            124W /  700W |    1521MiB /  81559MiB |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+|   4  NVIDIA H100 80GB HBM3          On  |   00000000:84:00.0 Off |                    0 |
+| N/A   33C    P0            116W /  700W |    1521MiB /  81559MiB |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+|   5  NVIDIA H100 80GB HBM3          On  |   00000000:85:00.0 Off |                    0 |
+| N/A   31C    P0            112W /  700W |    1521MiB /  81559MiB |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+|   6  NVIDIA H100 80GB HBM3          On  |   00000000:8B:00.0 Off |                    0 |
+| N/A   33C    P0            119W /  700W |    1521MiB /  81559MiB |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+|   7  NVIDIA H100 80GB HBM3          On  |   00000000:8C:00.0 Off |                    0 |
+| N/A   31C    P0            116W /  700W |    1521MiB /  81559MiB |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|    0   N/A  N/A               1      C   /bin/dumb-init                         1512MiB |
+|    1   N/A  N/A               1      C   /bin/dumb-init                         1512MiB |
+|    2   N/A  N/A               1      C   /bin/dumb-init                         1512MiB |
+|    3   N/A  N/A               1      C   /bin/dumb-init                         1512MiB |
+|    4   N/A  N/A               1      C   /bin/dumb-init                         1512MiB |
+|    5   N/A  N/A               1      C   /bin/dumb-init                         1512MiB |
+|    6   N/A  N/A               1      C   /bin/dumb-init                         1512MiB |
+|    7   N/A  N/A               1      C   /bin/dumb-init                         1512MiB |
++-----------------------------------------------------------------------------------------+
+
+====================================================================================================
+val_bpb:enabled tokenizer_kind=sentencepiece tokenizer_path=/data/tokenizers/fineweb_1024_bpe.model
+train_loader:dataset:fineweb10B_sp1024 train_shards:80
+val_loader:shards pattern=/data/datasets/fineweb10B_sp1024/fineweb_val_*.bin tokens:62021632
+model_params:21778504
+world_size:8 grad_accum_steps:1
+sdp_backends:cudnn=False flash=True mem_efficient=False math=False
+attention_mode:gqa num_heads:8 num_kv_heads:4
+tie_embeddings:True embed_lr:0.03 head_lr:0.0 matrix_lr:0.02 scalar_lr:0.02
+train_batch_tokens:393216 train_seq_len:4096 iterations:20000 warmup_steps:20 max_wallclock_seconds:600.000
+seed:1337
+eval_stride:64 eval_batch_seqs:64
+quantization:int6_blocks_int8_embed mlp_mult:3
+warmup_step:1/20
+warmup_step:2/20
+warmup_step:3/20
+warmup_step:4/20
+warmup_step:5/20
+warmup_step:6/20
+warmup_step:7/20
+warmup_step:8/20
+warmup_step:9/20
+warmup_step:10/20
+warmup_step:11/20
+warmup_step:12/20
+warmup_step:13/20
+warmup_step:14/20
+warmup_step:15/20
+warmup_step:16/20
+warmup_step:17/20
+warmup_step:18/20
+warmup_step:19/20
+warmup_step:20/20
+step:0/20000 val_loss:6.9378 val_bpb:4.1090 train_time:0ms step_avg:0.02ms
+step:1/20000 train_loss:6.9373 train_time:37ms step_avg:36.72ms
+step:2/20000 train_loss:12.2289 train_time:102ms step_avg:51.13ms
+step:3/20000 train_loss:7.5372 train_time:158ms step_avg:52.51ms
+step:4/20000 train_loss:6.2663 train_time:222ms step_avg:55.49ms
+step:5/20000 train_loss:6.7756 train_time:279ms step_avg:55.89ms
+step:6/20000 train_loss:6.8412 train_time:341ms step_avg:56.81ms
+step:7/20000 train_loss:6.7135 train_time:406ms step_avg:58.06ms
+step:8/20000 train_loss:6.6196 train_time:465ms step_avg:58.12ms
+step:9/20000 train_loss:6.2416 train_time:524ms step_avg:58.21ms
+step:10/20000 train_loss:6.1993 train_time:581ms step_avg:58.11ms
+step:200/20000 train_loss:2.7793 train_time:11477ms step_avg:57.38ms
+step:400/20000 train_loss:2.4121 train_time:23049ms step_avg:57.62ms
+step:600/20000 train_loss:2.2805 train_time:34779ms step_avg:57.96ms
+step:800/20000 train_loss:2.3548 train_time:46374ms step_avg:57.97ms
+step:1000/20000 train_loss:2.3156 train_time:57852ms step_avg:57.85ms
+step:1000/20000 val_loss:2.2802 val_bpb:1.3505 train_time:57888ms step_avg:57.89ms
+step:1200/20000 train_loss:2.3291 train_time:69456ms step_avg:57.88ms
+step:1400/20000 train_loss:2.2797 train_time:81118ms step_avg:57.94ms
+step:1600/20000 train_loss:2.2452 train_time:93082ms step_avg:58.18ms
+step:1800/20000 train_loss:2.0277 train_time:104675ms step_avg:58.15ms
+step:2000/20000 train_loss:2.2828 train_time:116176ms step_avg:58.09ms
+step:2000/20000 val_loss:2.1856 val_bpb:1.2944 train_time:116208ms step_avg:58.10ms
+step:2200/20000 train_loss:2.0411 train_time:127821ms step_avg:58.10ms
+step:2400/20000 train_loss:2.1827 train_time:139460ms step_avg:58.11ms
+step:2600/20000 train_loss:2.2974 train_time:151036ms step_avg:58.09ms
+step:2800/20000 train_loss:2.3693 train_time:162548ms step_avg:58.05ms
+step:3000/20000 train_loss:2.1451 train_time:174019ms step_avg:58.01ms
+step:3000/20000 val_loss:2.1258 val_bpb:1.2590 train_time:174052ms step_avg:58.02ms
+step:3200/20000 train_loss:2.1730 train_time:185573ms step_avg:57.99ms
+step:3400/20000 train_loss:2.1684 train_time:197214ms step_avg:58.00ms
+step:3600/20000 train_loss:2.0556 train_time:208853ms step_avg:58.01ms
+step:3800/20000 train_loss:2.0694 train_time:220305ms step_avg:57.97ms
+step:4000/20000 train_loss:1.8993 train_time:231978ms step_avg:57.99ms
+step:4000/20000 val_loss:2.0914 val_bpb:1.2386 train_time:232009ms step_avg:58.00ms
+step:4200/20000 train_loss:1.9763 train_time:243564ms step_avg:57.99ms
+step:4400/20000 train_loss:2.0810 train_time:255128ms step_avg:57.98ms
+step:4600/20000 train_loss:2.0160 train_time:266719ms step_avg:57.98ms
+step:4800/20000 train_loss:2.0444 train_time:278208ms step_avg:57.96ms
+step:5000/20000 train_loss:2.1082 train_time:289768ms step_avg:57.95ms
+step:5000/20000 val_loss:2.0712 val_bpb:1.2267 train_time:289799ms step_avg:57.96ms
+step:5200/20000 train_loss:2.1723 train_time:301319ms step_avg:57.95ms
+step:5400/20000 train_loss:1.8661 train_time:312869ms step_avg:57.94ms
+step:5600/20000 train_loss:2.2221 train_time:324484ms step_avg:57.94ms
+step:5800/20000 train_loss:2.1374 train_time:335962ms step_avg:57.92ms
+step:6000/20000 train_loss:1.9727 train_time:347540ms step_avg:57.92ms
+step:6000/20000 val_loss:2.0562 val_bpb:1.2178 train_time:347574ms step_avg:57.93ms
+step:6200/20000 train_loss:2.1237 train_time:359099ms step_avg:57.92ms
+step:6400/20000 train_loss:2.0706 train_time:370654ms step_avg:57.91ms
+step:6600/20000 train_loss:2.0626 train_time:382090ms step_avg:57.89ms
+step:6800/20000 train_loss:2.1370 train_time:393724ms step_avg:57.90ms
+step:7000/20000 train_loss:2.1183 train_time:405467ms step_avg:57.92ms
+step:7000/20000 val_loss:2.0465 val_bpb:1.2120 train_time:405501ms step_avg:57.93ms
+step:7200/20000 train_loss:2.0430 train_time:417055ms step_avg:57.92ms
+step:7400/20000 train_loss:2.0572 train_time:428687ms step_avg:57.93ms
+step:7600/20000 train_loss:2.0049 train_time:440174ms step_avg:57.92ms
+step:7800/20000 train_loss:2.0388 train_time:451771ms step_avg:57.92ms
+step:8000/20000 train_loss:2.1012 train_time:463365ms step_avg:57.92ms
+step:8000/20000 val_loss:2.0280 val_bpb:1.2011 train_time:463398ms step_avg:57.92ms
+step:8200/20000 train_loss:2.1023 train_time:474997ms step_avg:57.93ms
+step:8400/20000 train_loss:1.9804 train_time:486613ms step_avg:57.93ms
+step:8600/20000 train_loss:2.0330 train_time:498063ms step_avg:57.91ms
+step:8800/20000 train_loss:1.9378 train_time:509662ms step_avg:57.92ms
+step:9000/20000 train_loss:2.0491 train_time:521325ms step_avg:57.93ms
+step:9000/20000 val_loss:2.0041 val_bpb:1.1870 train_time:521359ms step_avg:57.93ms
+step:9200/20000 train_loss:1.9326 train_time:532941ms step_avg:57.93ms
+step:9400/20000 train_loss:1.9563 train_time:544438ms step_avg:57.92ms
+step:9600/20000 train_loss:2.0048 train_time:556053ms step_avg:57.92ms
+step:9800/20000 train_loss:1.9089 train_time:567642ms step_avg:57.92ms
+step:10000/20000 train_loss:1.9450 train_time:579220ms step_avg:57.92ms
+step:10000/20000 val_loss:1.9845 val_bpb:1.1753 train_time:579252ms step_avg:57.93ms
+step:10200/20000 train_loss:1.9764 train_time:590793ms step_avg:57.92ms
+step:10361/20000 val_loss:1.9806 val_bpb:1.1730 train_time:600045ms step_avg:57.91ms
+stopping_early: wallclock_cap train_time:600045ms step:10361/20000
+peak memory allocated: 8514 MiB reserved: 8622 MiB
+Serialized model: 86099351 bytes
+Code size: 50872 bytes
+Total submission size: 86150223 bytes
+Serialized model int8+zlib: 15305942 bytes (payload:21906720 raw_torch:21951833 payload_ratio:3.93x)
+Total submission size int8+zlib: 15356814 bytes
+final_eval_mode:sliding_window stride:64 batch_seqs:64
+final_int8_zlib_roundtrip val_loss:1.9635 val_bpb:1.1629 eval_time:308436ms
+final_int8_zlib_roundtrip_exact val_loss:1.96346117 val_bpb:1.16287856
