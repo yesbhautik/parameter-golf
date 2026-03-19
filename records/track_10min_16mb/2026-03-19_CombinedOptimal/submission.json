@@ -1,0 +1,17 @@
+{
+  "author": "yesbhautik",
+  "github_id": "yesbhautik",
+  "name": "Combined Optimal: Val-Only + Sliding Window + 10L Int6 + Tuned Muon",
+  "blurb": "Stacks four orthogonal improvements: (1) val-only training for memorization, (2) sliding window eval at stride=64 for maximum-context scoring, (3) 10 transformer layers with mixed int8/int6 quantization to fit under 16MB, and (4) tuned Muon optimizer (momentum 0.99, lower LR 0.02, seq_len 4096, warmdown 3000).",
+  "date": "2026-03-19T12:30:00Z",
+  "val_loss": 1.71356034,
+  "val_bpb": 1.01487241,
+  "pre_quant_val_loss": 1.7146,
+  "pre_quant_val_bpb": 1.0155,
+  "step_stop": 9494,
+  "wallclock_seconds": 600.025,
+  "eval_time_seconds": 311.879,
+  "bytes_total": 15542354,
+  "bytes_model_int8_zlib": 15492185,
+  "bytes_code": 50169
+}
