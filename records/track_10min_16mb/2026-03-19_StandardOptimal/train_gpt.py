@@ -48,8 +48,8 @@ class Hyperparameters:
     run_id = os.environ.get("RUN_ID", str(uuid.uuid4()))
     seed = int(os.environ.get("SEED", 1337))
     val_batch_size = int(os.environ.get("VAL_BATCH_SIZE", 524_288))
-    val_loss_every = int(os.environ.get("VAL_LOSS_EVERY", 1000))
-    train_log_every = int(os.environ.get("TRAIN_LOG_EVERY", 200))
+    val_loss_every = int(os.environ.get("VAL_LOSS_EVERY", 500))
+    train_log_every = int(os.environ.get("TRAIN_LOG_EVERY", 100))
     iterations = int(os.environ.get("ITERATIONS", 20000))
     warmdown_iters = int(os.environ.get("WARMDOWN_ITERS", 3000))
     warmup_steps = int(os.environ.get("WARMUP_STEPS", 20))
@@ -58,7 +58,7 @@ class Hyperparameters:
     max_wallclock_seconds = float(os.environ.get("MAX_WALLCLOCK_SECONDS", 600.0))
     qk_gain_init = float(os.environ.get("QK_GAIN_INIT", 1.5))
     vocab_size = int(os.environ.get("VOCAB_SIZE", 1024))
-    num_layers = int(os.environ.get("NUM_LAYERS", 9))
+    num_layers = int(os.environ.get("NUM_LAYERS", 10))
     num_kv_heads = int(os.environ.get("NUM_KV_HEADS", 4))
     model_dim = int(os.environ.get("MODEL_DIM", 512))
     num_heads = int(os.environ.get("NUM_HEADS", 8))
@@ -80,8 +80,8 @@ class Hyperparameters:
     beta2 = float(os.environ.get("BETA2", 0.95))
     adam_eps = float(os.environ.get("ADAM_EPS", 1e-8))
     grad_clip_norm = float(os.environ.get("GRAD_CLIP_NORM", 0.3))
-    weight_decay = float(os.environ.get("WEIGHT_DECAY", 0.01))
-    muon_wd = float(os.environ.get("MUON_WD", 0.02))
+    weight_decay = float(os.environ.get("WEIGHT_DECAY", 0.04))
+    muon_wd = float(os.environ.get("MUON_WD", 0.04))
     eval_stride = int(os.environ.get("EVAL_STRIDE", 64))
     eval_batch_seqs = int(os.environ.get("EVAL_BATCH_SEQS", 32))
     bigram_vocab_size = int(os.environ.get("BIGRAM_VOCAB_SIZE", 4096))
@@ -267,12 +267,16 @@ INT8_KEEP_FLOAT_MAX_NUMEL = 65_536
 INT8_KEEP_FLOAT_STORE_DTYPE = torch.float16
 INT8_PER_ROW_SCALE_DTYPE = torch.float16
 INT8_CLIP_Q = float(os.environ.get("INT8_CLIP_Q", 0.9999984))
-INT6_QUANT_RANGE = 31
-INT6_CLIP_Q = 0.9999984
+INT6_CLIP_Q = float(os.environ.get("INT6_CLIP_Q", 0.9999984))
+INT6_QUANT_RANGE_DEFAULT = int(os.environ.get("INT6_QUANT_RANGE", 31))
+INT6_QUANT_RANGE_MLP = int(os.environ.get("INT6_QUANT_RANGE_MLP", 15))
+INT6_QUANT_RANGE_ATTN = int(os.environ.get("INT6_QUANT_RANGE_ATTN", INT6_QUANT_RANGE_DEFAULT))
+INT6_QUANT_RANGE_OTHER = int(os.environ.get("INT6_QUANT_RANGE_OTHER", INT6_QUANT_RANGE_DEFAULT))
 MIXED_QUANT_INT6_CATS = frozenset(
-    c.strip() for c in os.environ.get("MIXED_QUANT_INT6_CATS", "mlp,attn,other").split(",") if c.strip()
+    c.strip() for c in os.environ.get("MIXED_QUANT_INT6_CATS", "mlp,attn").split(",") if c.strip()
 )
-STE_QAT_ENABLED = bool(int(os.environ.get("STE_QAT_ENABLED", "1")))
+STE_QAT_ENABLED = bool(int(os.environ.get("STE_QAT_ENABLED", "0")))
+STE_QAT_RANGE = int(os.environ.get("STE_QAT_RANGE", 31))
 
 def tensor_nbytes(t): return int(t.numel()) * int(t.element_size())
 
@@ -295,17 +299,17 @@ def quantize_float_tensor_int8(t):
     q = torch.clamp(torch.round(torch.clamp(t32, -ca, ca) / sc), -127, 127).to(torch.int8).contiguous()
     return q, sc
 
-def quantize_float_tensor_int6(t):
+def quantize_float_tensor_intq(t, quant_range, clip_q):
     t32 = t.float()
     if t32.ndim == 2:
-        ca = torch.quantile(t32.abs(), INT6_CLIP_Q, dim=1) if t32.numel() else torch.empty((t32.shape[0],), dtype=torch.float32)
+        ca = torch.quantile(t32.abs(), clip_q, dim=1) if t32.numel() else torch.empty((t32.shape[0],), dtype=torch.float32)
         cl = torch.maximum(torch.minimum(t32, ca[:, None]), -ca[:, None])
-        sc = (ca / float(INT6_QUANT_RANGE)).clamp_min(1e-8)
-        q = torch.clamp(torch.round(cl / sc[:, None]), -INT6_QUANT_RANGE, INT6_QUANT_RANGE).to(torch.int8).contiguous()
+        sc = (ca / float(quant_range)).clamp_min(1e-8)
+        q = torch.clamp(torch.round(cl / sc[:, None]), -quant_range, quant_range).to(torch.int8).contiguous()
         return q, sc.to(dtype=INT8_PER_ROW_SCALE_DTYPE).contiguous()
-    ca = float(torch.quantile(t32.abs().flatten(), INT6_CLIP_Q).item()) if t32.numel() else 0.0
-    sc = torch.tensor(ca / 127.0 if ca > 0 else 1.0, dtype=torch.float32)
-    q = torch.clamp(torch.round(torch.clamp(t32, -ca, ca) / sc), -127, 127).to(torch.int8).contiguous()
+    ca = float(torch.quantile(t32.abs().flatten(), clip_q).item()) if t32.numel() else 0.0
+    sc = torch.tensor(ca / float(quant_range) if ca > 0 else 1.0, dtype=torch.float32)
+    q = torch.clamp(torch.round(torch.clamp(t32, -ca, ca) / sc), -quant_range, quant_range).to(torch.int8).contiguous()
     return q, sc
 
 def quantize_state_dict_int6(state_dict):
@@ -329,14 +333,18 @@ def quantize_state_dict_int6(state_dict):
         stats["num_float_tensors"] += 1
         cat = _classify_param(name)
         if cat in MIXED_QUANT_INT6_CATS and t.ndim >= 1:
-            q, s = quantize_float_tensor_int6(t); qtype = "int6"
+            if cat == "mlp": quant_range = INT6_QUANT_RANGE_MLP
+            elif cat == "attn": quant_range = INT6_QUANT_RANGE_ATTN
+            else: quant_range = INT6_QUANT_RANGE_OTHER
+            q, s = quantize_float_tensor_intq(t, quant_range=quant_range, clip_q=INT6_CLIP_Q)
+            qtype = "int5" if quant_range <= 15 else "int6"
         else:
             q, s = quantize_float_tensor_int8(t); qtype = "int8"
         if s.ndim > 0: qmeta[name] = {"scheme": "per_row", "axis": 0, "qtype": qtype}
         else: qmeta[name] = {"qtype": qtype}
         quantized[name] = q; scales[name] = s; dtypes[name] = str(t.dtype).removeprefix("torch.")
         stats["int8_payload_bytes"] += tensor_nbytes(q) + tensor_nbytes(s)
-    obj = {"__quant_format__": "mixed_int6_int8_fp16embed_v2", "quantized": quantized, "scales": scales, "dtypes": dtypes, "passthrough": passthrough}
+    obj = {"__quant_format__": "mixed_int5_int6_int8_fp16embed_v3", "quantized": quantized, "scales": scales, "dtypes": dtypes, "passthrough": passthrough}
     if qmeta: obj["qmeta"] = qmeta
     if passthrough_orig_dtypes: obj["passthrough_orig_dtypes"] = passthrough_orig_dtypes
     return obj, stats
@@ -405,7 +413,7 @@ class CastedLinear(nn.Linear):
         if self.training and STE_QAT_ENABLED and w.ndim == 2:
             with torch.no_grad():
                 w32 = w.float(); ca = torch.quantile(w32.abs(), INT6_CLIP_Q, dim=1).clamp_min(1e-8)
-                sc = ca / INT6_QUANT_RANGE; wc = torch.clamp(w32, -ca[:, None], ca[:, None])
+                sc = ca / float(STE_QAT_RANGE); wc = torch.clamp(w32, -ca[:, None], ca[:, None])
                 wq = (torch.round(wc / sc[:, None]) * sc[:, None]).to(x.dtype)
             w = w + (wq - w).detach()
         bias = self.bias.to(x.dtype) if self.bias is not None else None
