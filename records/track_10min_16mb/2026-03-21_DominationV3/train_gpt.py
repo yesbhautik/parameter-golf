@@ -91,6 +91,8 @@ class Hyperparameters:
     ttt_epochs = int(os.environ.get("TTT_EPOCHS", 3))
     ttt_batch_seqs = int(os.environ.get("TTT_BATCH_SEQS", 32))
     ttt_freeze_blocks = int(os.environ.get("TTT_FREEZE_BLOCKS", 2))
+    rope_dims = int(os.environ.get("ROPE_DIMS", 0))
+    ln_scale = bool(int(os.environ.get("LN_SCALE", "0")))
 
 # -----------------------------
 # MUON OPTIMIZER WITH WEIGHT DECAY
@@ -426,17 +428,20 @@ def restore_low_dim_params_to_fp32(module):
                 param.data = param.data.float()
 
 class Rotary(nn.Module):
-    def __init__(self, dim, base=10000.0, train_seq_len=1024):
+    def __init__(self, dim, base=10000.0, train_seq_len=1024, rope_dims=0):
         super().__init__()
-        self._dim = dim; self._base = base; self._train_seq_len = train_seq_len
-        self.register_buffer("inv_freq", 1.0 / (base ** (torch.arange(0, dim, 2, dtype=torch.float32) / dim)), persistent=False)
+        self._base = base; self._train_seq_len = train_seq_len
+        self.rope_dims = rope_dims if rope_dims > 0 else dim
+        rd = self.rope_dims
+        self.register_buffer("inv_freq", 1.0 / (base ** (torch.arange(0, rd, 2, dtype=torch.float32) / rd)), persistent=False)
         self._seq_len_cached = 0; self._cos_cached = None; self._sin_cached = None
     def forward(self, seq_len, device, dtype):
         if self._cos_cached is None or self._seq_len_cached != seq_len or self._cos_cached.device != device:
+            rd = self.rope_dims
             if seq_len > self._train_seq_len:
                 scale = seq_len / self._train_seq_len
-                new_base = self._base * (scale ** (self._dim / (self._dim - 2)))
-                inv_freq = 1.0 / (new_base ** (torch.arange(0, self._dim, 2, dtype=torch.float32, device=device) / self._dim))
+                new_base = self._base * (scale ** (rd / (rd - 2)))
+                inv_freq = 1.0 / (new_base ** (torch.arange(0, rd, 2, dtype=torch.float32, device=device) / rd))
             else:
                 inv_freq = self.inv_freq.to(device)
             t = torch.arange(seq_len, device=device, dtype=inv_freq.dtype)
@@ -445,12 +450,17 @@ class Rotary(nn.Module):
             self._seq_len_cached = seq_len
         return self._cos_cached.to(dtype=dtype), self._sin_cached.to(dtype=dtype)
 
-def apply_rotary_emb(x, cos, sin):
+def apply_rotary_emb(x, cos, sin, rope_dims=0):
+    if rope_dims > 0 and rope_dims < x.size(-1):
+        xr, xp = x[..., :rope_dims], x[..., rope_dims:]
+        h = rope_dims // 2; x1, x2 = xr[..., :h], xr[..., h:]
+        xr = torch.cat((x1 * cos + x2 * sin, x1 * (-sin) + x2 * cos), dim=-1)
+        return torch.cat((xr, xp), dim=-1)
     h = x.size(-1) // 2; x1, x2 = x[..., :h], x[..., h:]
     return torch.cat((x1 * cos + x2 * sin, x1 * (-sin) + x2 * cos), dim=-1)
 
 class CausalSelfAttention(nn.Module):
-    def __init__(self, dim, num_heads, num_kv_heads, rope_base, qk_gain_init):
+    def __init__(self, dim, num_heads, num_kv_heads, rope_base, qk_gain_init, rope_dims=0):
         super().__init__()
         self.num_heads, self.num_kv_heads = num_heads, num_kv_heads; self.head_dim = dim // num_heads
         kv_dim = num_kv_heads * self.head_dim
@@ -458,7 +468,8 @@ class CausalSelfAttention(nn.Module):
         self.c_v = CastedLinear(dim, kv_dim, bias=False); self.proj = CastedLinear(dim, dim, bias=False)
         self.proj._zero_init = True
         self.q_gain = nn.Parameter(torch.full((num_heads,), qk_gain_init, dtype=torch.float32))
-        self.rotary = Rotary(self.head_dim, base=rope_base)
+        self.rope_dims = rope_dims
+        self.rotary = Rotary(self.head_dim, base=rope_base, rope_dims=rope_dims)
         self.use_xsa = False
 
     def _xsa_efficient(self, y, v):
@@ -477,7 +488,8 @@ class CausalSelfAttention(nn.Module):
         v = self.c_v(x).reshape(bsz, seqlen, self.num_kv_heads, self.head_dim).transpose(1, 2)
         q, k = F.rms_norm(q, (q.size(-1),)), F.rms_norm(k, (k.size(-1),))
         cos, sin = self.rotary(seqlen, x.device, q.dtype)
-        q, k = apply_rotary_emb(q, cos, sin), apply_rotary_emb(k, cos, sin)
+        q = apply_rotary_emb(q, cos, sin, self.rope_dims)
+        k = apply_rotary_emb(k, cos, sin, self.rope_dims)
         q = q * self.q_gain.to(dtype=q.dtype)[None, :, None, None]
         y = F.scaled_dot_product_attention(q, k, v, attn_mask=None, is_causal=True, enable_gqa=(self.num_kv_heads != self.num_heads))
         y = y.transpose(1, 2).contiguous()
@@ -518,25 +530,27 @@ class BigramHashEmbedding(nn.Module):
         return h * self.scale.to(dtype=h.dtype)
 
 class Block(nn.Module):
-    def __init__(self, dim, num_heads, num_kv_heads, mlp_mult, rope_base, qk_gain_init):
+    def __init__(self, dim, num_heads, num_kv_heads, mlp_mult, rope_base, qk_gain_init, rope_dims=0, ln_sf=1.0):
         super().__init__()
         self.attn_norm, self.mlp_norm = RMSNorm(), RMSNorm()
-        self.attn = CausalSelfAttention(dim, num_heads, num_kv_heads, rope_base, qk_gain_init)
+        self.attn = CausalSelfAttention(dim, num_heads, num_kv_heads, rope_base, qk_gain_init, rope_dims=rope_dims)
         self.mlp = MLP(dim, mlp_mult)
         self.attn_scale = nn.Parameter(torch.ones(dim, dtype=torch.float32))
         self.mlp_scale = nn.Parameter(torch.ones(dim, dtype=torch.float32))
         self.resid_mix = nn.Parameter(torch.stack((torch.ones(dim), torch.zeros(dim))).float())
+        self.ln_sf = ln_sf
     def forward(self, x, x0):
         mix = self.resid_mix.to(dtype=x.dtype)
         x = mix[0][None, None, :] * x + mix[1][None, None, :] * x0
-        x = x + self.attn_scale.to(dtype=x.dtype)[None, None, :] * self.attn(self.attn_norm(x))
-        x = x + self.mlp_scale.to(dtype=x.dtype)[None, None, :] * self.mlp(self.mlp_norm(x))
+        s = self.ln_sf
+        x = x + self.attn_scale.to(dtype=x.dtype)[None, None, :] * self.attn(self.attn_norm(x) * s)
+        x = x + self.mlp_scale.to(dtype=x.dtype)[None, None, :] * self.mlp(self.mlp_norm(x) * s)
         return x
 
 class GPT(nn.Module):
     def __init__(self, vocab_size, num_layers, model_dim, num_heads, num_kv_heads, mlp_mult,
                  tie_embeddings, tied_embed_init_std, logit_softcap, rope_base, qk_gain_init,
-                 bigram_vocab_size=0, bigram_dim=128, xsa_last_n=0):
+                 bigram_vocab_size=0, bigram_dim=128, xsa_last_n=0, rope_dims=0, ln_scale=False):
         super().__init__()
         self.tie_embeddings, self.tied_embed_init_std, self.logit_softcap = tie_embeddings, tied_embed_init_std, logit_softcap
         self.tok_emb = nn.Embedding(vocab_size, model_dim)
@@ -546,7 +560,7 @@ class GPT(nn.Module):
         self.num_decoder_layers = num_layers - self.num_encoder_layers
         self.num_skip_weights = min(self.num_encoder_layers, self.num_decoder_layers)
         self.skip_weights = nn.Parameter(torch.ones(self.num_skip_weights, model_dim, dtype=torch.float32))
-        self.blocks = nn.ModuleList([Block(model_dim, num_heads, num_kv_heads, mlp_mult, rope_base, qk_gain_init) for _ in range(num_layers)])
+        self.blocks = nn.ModuleList([Block(model_dim, num_heads, num_kv_heads, mlp_mult, rope_base, qk_gain_init, rope_dims=rope_dims, ln_sf=1.0 / math.sqrt(i + 1) if ln_scale else 1.0) for i in range(num_layers)])
         self.final_norm = RMSNorm()
         self.lm_head = None if tie_embeddings else CastedLinear(model_dim, vocab_size, bias=False)
         if self.lm_head is not None: self.lm_head._zero_init = True
@@ -662,7 +676,7 @@ def main():
                      tie_embeddings=args.tie_embeddings, tied_embed_init_std=args.tied_embed_init_std,
                      logit_softcap=args.logit_softcap, rope_base=args.rope_base, qk_gain_init=args.qk_gain_init,
                      bigram_vocab_size=args.bigram_vocab_size, bigram_dim=args.bigram_dim,
-                     xsa_last_n=args.xsa_last_n).to(device).bfloat16()
+                     xsa_last_n=args.xsa_last_n, rope_dims=args.rope_dims, ln_scale=args.ln_scale).to(device).bfloat16()
     for module in base_model.modules():
         if isinstance(module, CastedLinear): module.float()
     restore_low_dim_params_to_fp32(base_model)
@@ -698,7 +712,7 @@ def main():
     log0(f"train_batch_tokens:{args.train_batch_tokens} train_seq_len:{args.train_seq_len} warmdown:{args.warmdown_iters} seed:{args.seed}")
     log0(f"ste_qat:{STE_QAT_ENABLED} ste_range:{STE_QAT_RANGE} int6_cats:{MIXED_QUANT_INT6_CATS}")
     log0(f"fp16_passthrough:{FP16_PASSTHROUGH_PATTERNS}")
-    log0(f"xsa_last_n:{args.xsa_last_n} ema:{args.ema_enabled} ema_decay:{args.ema_decay}")
+    log0(f"xsa_last_n:{args.xsa_last_n} ema:{args.ema_enabled} ema_decay:{args.ema_decay} rope_dims:{args.rope_dims} ln_scale:{args.ln_scale}")
 
     train_loader = DistributedTokenLoader(args.train_files, rank, world_size, device)
     def zero_grad_all():
@@ -818,7 +832,7 @@ def main():
                      tie_embeddings=args.tie_embeddings, tied_embed_init_std=args.tied_embed_init_std,
                      logit_softcap=args.logit_softcap, rope_base=args.rope_base, qk_gain_init=args.qk_gain_init,
                      bigram_vocab_size=args.bigram_vocab_size, bigram_dim=args.bigram_dim,
-                     xsa_last_n=args.xsa_last_n).to(device).bfloat16()
+                     xsa_last_n=args.xsa_last_n, rope_dims=args.rope_dims, ln_scale=args.ln_scale).to(device).bfloat16()
     for module in eval_model.modules():
         if isinstance(module, CastedLinear):
             module.float()

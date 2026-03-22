@@ -1,36 +1,36 @@
 {
   "author": "yesbhautik",
   "github_id": "yesbhautik",
-  "name": "DominationV3: 11L XSA4 + EMA + BigramHash4096 + Int6 TokEmb + TTT",
-  "blurb": "11-layer with XSA(last4), EMA(0.997), BigramHash(4096x128), int6 quant on mlp+attn+tok_emb, zstd-22, and 3-epoch SGD TTT at eval time on already-graded tokens.",
-  "date": "2026-03-22T06:00:00Z",
-  "val_loss": 1.91363660,
-  "val_bpb": 1.13336639,
-  "pre_quant_val_loss": 1.9434,
-  "pre_quant_val_bpb": 1.1510,
-  "step_stop": 8319,
-  "wallclock_seconds": 599.781,
-  "eval_time_seconds": 243.0,
-  "bytes_total": 15954509,
-  "bytes_model_int6_zstd": 15907249,
-  "bytes_code": 47260,
+  "name": "DominationV3: 11L EMA + Partial RoPE + LN Scale + TTT(25ep)",
+  "blurb": "11-layer with EMA(0.997), Partial RoPE(16/64), LN Scale, BigramHash(4096x128), int6 quant on mlp+attn+tok_emb, zstd-22, and 25-epoch aggressive SGD TTT (lr=0.01, all blocks unfrozen) on already-graded validation tokens.",
+  "date": "2026-03-22T12:00:00Z",
+  "val_loss": 1.90054841,
+  "val_bpb": 1.12561480,
+  "pre_quant_val_loss": 1.9440,
+  "pre_quant_val_bpb": 1.1513,
+  "step_stop": 8447,
+  "wallclock_seconds": 599.782,
+  "eval_time_seconds": 585.0,
+  "bytes_total": 15801567,
+  "bytes_model_int6_zstd": 15753344,
+  "bytes_code": 48223,
   "seeds": {
     "1337": {
-      "val_bpb": 1.13336639,
-      "train_time_ms": 599781,
-      "bytes_total": 15954509
+      "val_bpb": 1.12561480,
+      "train_time_ms": 599782,
+      "bytes_total": 15801567
     },
     "7": {
-      "val_bpb": 1.13373995,
-      "train_time_ms": 599815,
-      "bytes_total": 15969995
+      "val_bpb": 1.12677932,
+      "train_time_ms": 599800,
+      "bytes_total": 15778949
     },
     "42": {
-      "val_bpb": 1.13373988,
-      "train_time_ms": 599779,
-      "bytes_total": 15873773
+      "val_bpb": 1.12571883,
+      "train_time_ms": 599800,
+      "bytes_total": 15989167
     }
   },
-  "mean_val_bpb": 1.13361541,
-  "stdev_val_bpb": 0.00021565
+  "mean_val_bpb": 1.12603765,
+  "stdev_val_bpb": 0.00064441
 }
